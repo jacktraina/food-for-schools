@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id              Int              @id @default(autoincrement())
+  name            String
+  categoryId      Int              @map("category_id")
+  invitations     Invitation[]
+  rolePermissions RolePermission[]
+  roleCategory    RoleCategory     @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  userRoles       UserRole[]
+
+  @@unique([name, categoryId])
+  @@map("roles")
+}
+
+model Permission {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  rolePermissions RolePermission[] @relation("PermissionToRolePermission")
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id      Int   @id @default(autoincrement())
+  userId  Int   @map("user_id")
+  roleId  Int   @map("role_id")
+  scopeId Int   @map("scope_id")
+  role    Role  @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  scope   Scope @relation(fields: [scopeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, roleId, scopeId])
+  @@map("user_roles")
+}
+
+model User {
+  id                     Int                     @id @default(autoincrement())
+  email                  String                  @unique
+  firstName              String                  @map("first_name")
+  lastName               String                  @map("last_name")
+  statusId               Int                     @default(1) @map("status_id")
+  lastLogin              DateTime?               @map("last_login") @db.Timestamptz(6)
+  demoAccount            Boolean                 @default(false) @map("demo_account")
+  isDeleted              Boolean                 @default(false) @map("is_deleted")
+  passwordHash           String                  @map("password_hash")
+  emailVerified          Boolean                 @default(false) @map("email_verified")
+  cooperativeId          Int?                    @map("cooperative_id")
+  districtId             Int?                    @map("district_id")
+  bidManagers            BidManagers[]
+  bids                   Bid[]
+  bulkUserUploads        BulkUserUpload[]
+  emailVerificationCodes EmailVerificationCode[]
+  invitations            Invitation[]
+  passwordResetCodes     PasswordResetCode[]
+  tasks                  Task[]
+  userManagedBids        UserManagedBid[]
+  userRoles              UserRole[]
+  cooperative            Cooperatives?           @relation(fields: [cooperativeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cooperative_id_users")
+  district               District?               @relation(fields: [districtId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_district_id_users")
+  userStatus             UserStatus              @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("users")
+}
+
+model BulkUserUpload {
+  id            Int      @id @default(autoincrement())
+  fileName      String   @map("file_name")
+  uploadedBy    Int      @map("uploaded_by")
+  status        String   @default("Pending")
+  totalRows     Int?     @map("total_rows")
+  processedRows Int?     @map("processed_rows")
+  failedRows    Int?     @map("failed_rows")
+  errorDetails  String?  @map("error_details")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user          User     @relation(fields: [uploadedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("bulk_user_uploads")
+}
+
+model Bid {
+  id                     Int              @id @default(autoincrement())
+  name                   String           @db.VarChar
+  note                   String?
+  bidYear                String?          @map("bid_year") @db.VarChar
+  categoryId             Int?             @map("category_id")
+  status                 String           @db.VarChar
+  awardType              String?          @map("award_type") @db.VarChar
+  startDate              DateTime?        @map("start_date") @db.Timestamp(6)
+  endDate                DateTime?        @map("end_date") @db.Timestamp(6)
+  anticipatedOpeningDate DateTime?        @map("anticipated_opening_date") @db.Timestamp(6)
+  awardDate              DateTime?        @map("award_date") @db.Timestamp(6)
+  userId                 Int?             @map("user_id")
+  description            String?
+  estimatedValue         String?          @map("estimated_value") @db.VarChar
+  createdAt              DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  isDeleted              Boolean?         @default(false) @map("is_deleted")
+  cooperativeId          Int?             @map("cooperative_id")
+  code                   String?          @unique(map: "uk_bids_code") @db.VarChar(50)
+  districtId             Int?             @map("district_id")
+  schoolId               Int?             @map("school_id")
+  bidManagers            BidManagers[]
+  cooperative            Cooperatives?    @relation(fields: [cooperativeId], references: [id], onUpdate: NoAction, map: "fk_cooperative_id")
+  district               District?        @relation(fields: [districtId], references: [id], onUpdate: NoAction, map: "fk_district_id")
+  school                 School?          @relation(fields: [schoolId], references: [id], onUpdate: NoAction, map: "fk_school_id")
+  user                   User?            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user")
+  category               BidCategories?   @relation(fields: [categoryId], references: [id], onUpdate: NoAction, map: "fk_category_id")
+  userManagedBids        UserManagedBid[]
+  bidItems               BidItems[]
+
+  @@index([userId], map: "idx_bids_user_id")
+  @@map("bids")
+}
+
+model Invitation {
+  id             Int           @id @default(autoincrement())
+  email          String
+  invitedBy      Int           @map("invited_by")
+  statusId       Int           @default(3) @map("status_id")
+  createdAt      DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  expirationDate DateTime?     @map("expiration_date") @db.Timestamptz(6)
+  invitedRoleId  Int?          @map("invited_role_id")
+  token          String?       @map("token")
+  cooperativeId  Int?          @map("cooperative_id")
+  districtId     Int?          @map("district_id")
+  cooperative    Cooperatives? @relation(fields: [cooperativeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cooperative_id_invitations")
+  district       District?     @relation(fields: [districtId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_district_id_invitations")
+  user           User          @relation(fields: [invitedBy], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role           Role?         @relation(fields: [invitedRoleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userStatus     UserStatus    @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("invitations")
+}
+
+model OrganizationType {
+  id                   Int                    @id @default(autoincrement())
+  name                 String                 @unique
+  cooperatives         Cooperatives[]
+  organizationContacts OrganizationContacts[]
+
+  @@map("organization_types")
+}
+
+model RoleCategory {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  roles Role[]
+
+  @@map("role_categories")
+}
+
+model RolePermission {
+  roleId       Int        @map("role_id")
+  permissionId Int        @map("permission_id")
+  permission   Permission @relation("PermissionToRolePermission", fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model ScopeType {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  scopes Scope[]
+
+  @@map("scope_types")
+}
+
+model Scope {
+  id            Int           @id @default(autoincrement())
+  typeId        Int           @map("type_id")
+  name          String?
+  schoolId      Int?          @map("school_id")
+  districtId    Int?          @map("district_id")
+  cooperativeId Int?          @map("cooperative_id")
+  cooperative   Cooperatives? @relation(fields: [cooperativeId], references: [id], onUpdate: NoAction, map: "fk_cooperative_id")
+  district      District?     @relation(fields: [districtId], references: [id], onUpdate: NoAction, map: "fk_district_id")
+  school        School?       @relation(fields: [schoolId], references: [id], onUpdate: NoAction, map: "fk_school_id")
+  scopeType     ScopeType     @relation(fields: [typeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userRoles     UserRole[]
+
+  @@map("scopes")
+}
+
+model UserManagedBid {
+  userId Int  @map("user_id")
+  bidId  Int  @map("bid_id")
+  bid    Bid  @relation(fields: [bidId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([userId, bidId])
+  @@map("user_managed_bids")
+}
+
+model UserStatus {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  cooperatives Cooperatives[]
+  districts    District[]
+  invitations  Invitation[]
+  schools      School[]
+  users        User[]
+
+  @@map("user_statuses")
+}
+
+model VendorStatus {
+  id                          Int                          @id @default(autoincrement())
+  name                        String                       @unique
+  vendorOrganizationApprovals VendorOrganizationApproval[]
+  vendors                     Vendor[]
+
+  @@map("vendor_statuses")
+}
+
+model Vendor {
+  id                          Int                          @id @default(autoincrement())
+  email                       String                       @unique
+  name                        String                       @unique
+  statusId                    Int                          @default(1) @map("status_id")
+  registeredAt                DateTime?                    @default(now()) @map("registered_at") @db.Timestamptz(6)
+  isDeleted                   Boolean                      @default(false) @map("is_deleted")
+  cooperativeId               Int?                         @map("cooperative_id")
+  districtId                  Int?                         @map("district_id")
+  vendorOrganizationApprovals VendorOrganizationApproval[]
+  cooperatives                Cooperatives?                @relation(fields: [cooperativeId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "vendors_cooperatives_id_fkey")
+  districts                   District?                    @relation(fields: [districtId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "vendors_districrs_id_fkey")
+  vendorStatus                VendorStatus                 @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("vendors")
+}
+
+model EmailVerificationCode {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  code      String
+  expiresAt DateTime @map("expires_at") @db.Timestamp(6)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  isDeleted Boolean  @default(false) @map("is_deleted")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("email_verification_codes")
+}
+
+model PasswordResetCode {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  code      String
+  expiresAt DateTime @map("expires_at") @db.Timestamp(6)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("password_reset_codes")
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  title       String
+  dueDate     DateTime  @map("due_date") @db.Date
+  assignedTo  Int?      @map("assigned_to")
+  isCompleted Boolean   @default(false) @map("is_completed")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User?     @relation(fields: [assignedTo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("tasks")
+}
+
+model DistrictProduct {
+  id          Int       @id @default(autoincrement())
+  districtId  Int       @map("district_id")
+  productName String    @map("product_name")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  district    District  @relation(fields: [districtId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([districtId, productName], map: "district_products_district_id_idx")
+  @@map("district_products")
+}
+
+model District {
+  id                          Int                          @id @default(autoincrement())
+  name                        String
+  location                    String?
+  directorName                String?                      @map("director_name")
+  streetAddress1              String?                      @map("street_address_1")
+  streetAddress2              String?                      @map("street_address_2")
+  city                        String?
+  state                       String?
+  zipCode                     String?                      @map("zip_code")
+  phone                       String?
+  email                       String?
+  fax                         String?
+  website                     String?
+  districtEnrollment          Int?                         @map("district_enrollment")
+  raNumber                    String?                      @map("ra_number")
+  numberOfSchools             Int?                         @map("number_of_schools")
+  numberOfStudents            Int?                         @map("number_of_students")
+  annualBudget                Decimal?                     @map("annual_budget") @db.Decimal
+  superintendentName          String?                      @map("superintendent_name")
+  establishedYear             Int?                         @map("established_year")
+  statusId                    Int                          @default(1) @map("status_id")
+  createdAt                   DateTime?                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  isDeleted                   Boolean                      @default(false) @map("is_deleted")
+  cooperativeId               Int?                         @map("cooperative_id")
+  code                        String?                      @unique @db.VarChar(50)
+  updatedAt                   DateTime?                    @map("updated_at") @db.Timestamptz(6)
+  participatingIn             String?                      @map("participating_in")
+  shippingAddress             String?                      @map("shipping_address")
+  description                 String?
+  notes                       String?
+  bids                        Bid[]
+  districtProducts            DistrictProduct[]
+  userStatus                  UserStatus                   @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cooperative                 Cooperatives?                @relation(fields: [cooperativeId], references: [id], onUpdate: NoAction, map: "fk_cooperative_id")
+  invitations                 Invitation[]
+  notifications               Notification[]               @relation("DistrictToNotification")
+  organizationContacts        OrganizationContacts[]
+  schools                     School[]
+  scopes                      Scope[]
+  users                       User[]
+  vendorOrganizationApprovals VendorOrganizationApproval[]
+  vendors                     Vendor[]
+
+  @@map("districts")
+}
+
+model Notification {
+  id            Int           @id @default(autoincrement())
+  title         String
+  details       String
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  type          String
+  cooperativeId Int?          @map("cooperative_id")
+  districtId    Int?          @map("district_id")
+  cooperative   Cooperatives? @relation("CooperativeToNotification", fields: [cooperativeId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notification_cooperative")
+  district      District?     @relation("DistrictToNotification", fields: [districtId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notification_district")
+
+  @@map("notifications")
+}
+
+model School {
+  id                      Int        @id @default(autoincrement())
+  districtId              Int        @map("district_id")
+  name                    String
+  enrollment              Int?
+  schoolType              String     @map("school_type")
+  addressLine1            String?    @map("address_line_1")
+  addressLine2            String?    @map("address_line_2")
+  city                    String?
+  state                   String?
+  zipCode                 String?    @map("zip_code")
+  shippingAddressLine1    String?    @map("shipping_address_line_1")
+  shippingAddressLine2    String?    @map("shipping_address_line_2")
+  shippingAddressCity     String?    @map("shipping_address_city")
+  shippingAddressState    String?    @map("shipping_address_state")
+  shippingAddressZipCode  String?    @map("shipping_address_zip_code")
+  notes                   String?
+  overrideDistrictBilling Boolean    @default(false) @map("override_district_billing")
+  statusId                Int        @default(1) @map("status_id")
+  isDeleted               Boolean    @default(false) @map("is_deleted")
+  createdAt               DateTime?  @default(now()) @map("created_at") @db.Timestamptz(6)
+  code                    String?    @unique @db.VarChar(50)
+  location                String?    @db.VarChar(255)
+  directorName            String?    @map("director_name") @db.VarChar(255)
+  raNumber                String?    @map("ra_number") @db.VarChar(50)
+  superintendent          String?    @db.VarChar(255)
+  established             Int?
+  budget                  Decimal?   @db.Decimal
+  participatingIn         String?    @map("participating_in")
+  website                 String?    @db.VarChar(255)
+  description             String?
+  logo                    String?
+  fax                     String?    @db.VarChar(50)
+  updatedAt               DateTime?  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  phone                   String?    @db.VarChar(50)
+  email                   String?    @db.VarChar(255)
+  shippingInstructions    String?    @map("shipping_instructions")
+  shippingDeliveryHours   String?    @map("shipping_delivery_hours")
+  bids                    Bid[]
+  district                District   @relation(fields: [districtId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  userStatus              UserStatus @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  scopes                  Scope[]
+
+  @@unique([name, districtId])
+  @@map("schools")
+}
+
+model VendorOrganizationApproval {
+  id            Int           @id @default(autoincrement())
+  vendorId      Int           @map("vendor_id")
+  statusId      Int           @default(1) @map("status_id")
+  createdAt     DateTime?     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime?     @map("updated_at") @db.Timestamptz(6)
+  cooperativeId Int?          @map("cooperative_id")
+  districtId    Int?          @map("district_id")
+  cooperative   Cooperatives? @relation(fields: [cooperativeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cooperative_id_vendors")
+  district      District?     @relation(fields: [districtId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_district_id_vendors")
+  vendorStatus  VendorStatus  @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor        Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("vendor_organization_approvals")
+}
+
+model BidCategories {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  bids        Bid[]
+
+  @@map("bid_categories")
+}
+
+model BidManagers {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  bidId     Int      @map("bid_id")
+  createdAt DateTime @map("created_at") @db.Timestamptz(6)
+  bid       Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_bid_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_id")
+
+  @@unique([userId, bidId])
+  @@map("bid_managers")
+}
+
+model Contacts {
+  id                   Int                    @id @default(autoincrement())
+  firstName            String                 @map("first_name") @db.VarChar(255)
+  lastName             String                 @map("last_name") @db.VarChar(255)
+  phone                String?                @db.VarChar(50)
+  address1             String?                @map("address_1")
+  address2             String?                @map("address_2")
+  city                 String?                @db.VarChar(125)
+  state                String?                @db.VarChar(125)
+  zipcode              String?                @map("zipcode") @db.VarChar(25)
+  contactType          contact_type           @default(default) @map("contact_type")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime               @default(now()) @map("updated_at") @db.Timestamptz(6)
+  email                String?
+  title                String?                @db.VarChar
+  organizationContacts OrganizationContacts[]
+
+  @@map("contacts")
+}
+
+model Cooperatives {
+  id                          Int                          @id @default(autoincrement())
+  code                        String                       @unique @db.VarChar(50)
+  name                        String                       @unique @db.VarChar(255)
+  organizationTypeId          Int                          @map("organization_type_id")
+  createdAt                   DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime                     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  address                     String?                      @db.VarChar(255)
+  city                        String?                      @db.VarChar(100)
+  state                       String?                      @db.VarChar(50)
+  zip                         String?                      @map("zip") @db.VarChar(20)
+  phone                       String?                      @db.VarChar(50)
+  fax                         String?                      @db.VarChar(50)
+  email                       String?                      @db.VarChar(255)
+  website                     String?                      @db.VarChar(255)
+  logo                        String?
+  description                 String?
+  enrollment                  Int?
+  location                    String?                      @db.VarChar(255)
+  directorsName               String?                      @map("directors_name") @db.VarChar(255)
+  raNumber                    String?                      @map("ra_number") @db.VarChar(50)
+  superintendent              String?                      @map("superintendent") @db.VarChar(255)
+  established                 Int?
+  userStatusId                Int                          @map("user_status_id")
+  budget                      Decimal?                     @db.Decimal
+  lastUpdated                 DateTime?                    @map("last_updated") @db.Timestamptz(6)
+  participatingIn             String?                      @map("participating_in")
+  shippingAddress             String?                      @map("shipping_address")
+  notes                       String?
+  bids                        Bid[]
+  organizationType            OrganizationType             @relation(fields: [organizationTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_organization_type_id")
+  userStatus                  UserStatus                   @relation(fields: [userStatusId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_status_id")
+  districts                   District[]
+  invitations                 Invitation[]
+  notifications               Notification[]               @relation("CooperativeToNotification")
+  scopes                      Scope[]
+  users                       User[]
+  vendorOrganizationApprovals VendorOrganizationApproval[]
+  vendors                     Vendor[]
+
+  @@map("cooperatives")
+}
+
+model OrganizationContacts {
+  id                 Int              @id(map: "entity_contacts_pkey") @default(autoincrement())
+  contactId          Int              @map("contact_id")
+  organizationId     Int              @map("organization_id")
+  organizationTypeId Int              @map("organization_type_id")
+  rank               Int
+  districtId         Int?             @map("district_id")
+  contact            Contacts         @relation(fields: [contactId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "entity_contacts_contact_id_fkey")
+  district           District?        @relation(fields: [districtId], references: [id], onUpdate: NoAction, map: "entity_contacts_district_id_fkey")
+  organizationType   OrganizationType @relation(fields: [organizationTypeId], references: [id], onUpdate: NoAction, map: "entity_contacts_organization_type_id_fkey")
+
+  @@map("organization_contacts")
+}
+
+model BidItems {
+  id                    Int       @id(map: "bid_items_pkey") @default(autoincrement())
+  bidId                 Int       @map("bid_id")
+  bidName               String?   @map("bid_name") @db.VarChar(255)
+  itemName              String    @map("item_name") @db.VarChar(255)
+  acceptableBrands      String?   @map("acceptable_brands")
+  awardGroup            String?   @map("award_group") @db.VarChar(255)
+  diversion             String?   @map("diversion") @db.VarChar(255)
+  status                String?   @map("status") @db.VarChar(255)
+  projection            Decimal?  @map("projection") @db.Decimal
+  projectionUnit        String?   @map("projection_unit") @db.VarChar(50)
+  minProjection         Decimal?  @map("min_projection") @db.Decimal
+  totalBidUnits         Decimal?  @map("total_bid_units") @db.Decimal
+  bidUnit               String?   @map("bid_unit") @db.VarChar(50)
+  bidUnitProjUnit       Decimal?  @map("bid_unit_proj_unit") @db.Decimal
+  percentDistrictsUsing Decimal?  @map("percent_districts_using") @db.Decimal
+  createdAt             DateTime? @map("created_at") @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime? @map("updated_at") @default(now()) @db.Timestamptz(6)
+  isDeleted             Boolean?  @map("is_deleted") @default(false)
+  bid                   Bid       @relation(fields: [bidId], references: [id], onDelete: Cascade, onUpdate: NoAction) // Add this relation
+
+  @@map("bid_items")
+  @@index([bidId], map: "idx_bid_items_bid_id")
+  @@index([itemName], map: "idx_bid_items_item_name")
+}
+
+enum contact_type {
+  default
+  billing
+  school
+}

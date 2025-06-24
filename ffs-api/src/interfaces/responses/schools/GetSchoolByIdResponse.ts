@@ -1,0 +1,31 @@
+export interface GetSchoolByIdResponse {
+  id: number;
+  districtId: number;
+  name: string;
+  enrollment: number | null;
+  schoolType: string;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  shippingAddressLine1: string | null;
+  shippingAddressLine2: string | null;
+  shippingAddressCity: string | null;
+  shippingAddressState: string | null;
+  shippingAddressZipCode: string | null;
+  notes: string | null;
+  phone: string | null;
+  email: string | null;
+  overrideDistrictBilling: boolean;
+  status: string;
+  createdAt: Date;
+  code: string | null;
+  location: string | null;
+  directorName: string | null;
+  website: string | null;
+  description: string | null;
+  logo: string | null;
+  fullAddress: string;
+  shippingFullAddress: string;
+}

@@ -1,0 +1,74 @@
+/* Fix for calendar grid layout */
+.calendar-wrapper .rdp-month {
+  width: 100%;
+}
+
+.calendar-wrapper .rdp-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.calendar-wrapper .rdp-head_row,
+.calendar-wrapper .rdp-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+}
+
+.calendar-wrapper .rdp-head_cell,
+.calendar-wrapper .rdp-cell {
+  width: 100%;
+  text-align: center;
+  padding: 4px;
+}
+
+.calendar-wrapper .rdp-head_cell {
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.calendar-wrapper .rdp-day {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.calendar-wrapper .rdp-day_selected {
+  background-color: hsl(222.2 47.4% 11.2%);
+  color: white;
+}
+
+.calendar-wrapper .rdp-day_today {
+  background-color: hsl(210 40% 96.1%);
+  color: hsl(222.2 47.4% 11.2%);
+}
+
+.calendar-wrapper .rdp-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  margin-bottom: 8px;
+}
+
+.calendar-wrapper .rdp-caption_label {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.calendar-wrapper .rdp-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-fix.rdp {
+  margin: 0;
+  padding: 16px;
+}
